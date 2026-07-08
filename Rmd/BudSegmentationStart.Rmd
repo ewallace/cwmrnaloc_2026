@@ -43,6 +43,8 @@ strain_table <-
 strain_table
 ```
 
+
+
 ```{r mrna_names}
 mrna_names <- c("ASH1CLB2", "SRL1", "SUN4")
 
@@ -63,10 +65,19 @@ mrna_alldata <- here::here("data", "Mara_budSegmentationData20260311.csv") %>%
   select(!starts_with("Unnamed") ) %>%
   select(!"condition + strain") %>%
   rename(cell_id = "...1") %>%
+  mutate(replicate = as_factor(replicate)) %>%
   rename_with(str_replace_all, pattern = "-", replacement = "_") %>%
   left_join(strain_table, by = c("strain", "condition"))
 
 mrna_alldata
+```
+
+
+```{r count_by_replicate}
+mrna_alldata %>% 
+  group_by(strain_nice, replicate) %>% 
+  count() %>%
+  print(n = 30)
 ```
 
 # Overview plots across strains
@@ -140,7 +151,8 @@ ggplot(data = mrna_alldata %>%
        aes(x = strain_nice, colour = mRNA)) +
   geom_boxplot(aes(y = total_RNAs_bud / total_RNAs, 
                    group = interaction(strain_nice, replicate)),
-               outlier.size = 0.5) +
+               outlier.size = 0.5,
+               position = position_dodge(preserve = "single")) +
   facet_wrap(~ mRNA,
              ncol = 1) +
   theme(panel.grid.major.y = element_line(colour = "grey80")) +
@@ -149,3 +161,171 @@ ggplot(data = mrna_alldata %>%
 
 ```
 
+## Count vs total cell area for WT 
+
+```{r plot_countvsarea_WT, fig.width = 4}
+ggplot(data = mrna_alldata %>%
+         filter(area > 1000,
+                strain_nice %in% c("WT")),
+       aes(x = area, y = total_RNAs)) +
+  geom_point(size = 0.1, colour = "grey50") +
+  geom_smooth(aes(linetype = replicate, colour = mRNA),
+              method = "loess", se = FALSE) + 
+  facet_wrap(~ mRNA, ncol = 1, scales = "free_y") +
+  # coord_cartesian(expand = c(0,0)) + 
+  scale_colour_mrna()
+# + 
+#   theme(panel.grid.major.y = element_line(colour = "grey80")) +
+#   scale_y_continuous(limits = c(0,1)) +
+#   scale_colour_mrna()
+
+```
+
+```{r plot_countvsarea_vsstrain, fig.width = 7}
+ggplot(data = mrna_alldata %>%
+         filter(strain_nice %in% c("WT", "ssd1Δ", "mpt5∆", "she2∆", "she3∆"),
+                area_bud > 0),
+       aes(x = area, y = total_RNAs)) +
+  geom_point(size = 0.1, colour = "grey50") +
+  geom_smooth(aes(colour = mRNA),
+              method = "gam",  se = FALSE) + 
+  facet_grid(mRNA ~ strain_nice, scales = "free_y") +
+  theme(panel.grid.major.y = element_line(colour = "grey80")) +
+  coord_cartesian(xlim = c(1500,6500), expand = FALSE) +
+  scale_colour_mrna()
+
+```
+
+## Count vs bud area for WT
+
+```{r plot_countvsbudarea_WT, fig.width = 4}
+ggplot(data = mrna_alldata %>%
+         filter(area_bud > 0,
+                strain_nice %in% c("WT")),
+       aes(x = area_bud, y = total_RNAs)) +
+  geom_point(size = 0.1, colour = "grey50") +
+  geom_smooth(aes(linetype = replicate, colour = mRNA),
+              method = "loess", se = FALSE) + 
+  facet_wrap(~ mRNA, ncol = 1, scales = "free_y") +
+  # coord_cartesian(expand = c(0,0)) + 
+  scale_colour_mrna()
+# + 
+#   theme(panel.grid.major.y = element_line(colour = "grey80")) +
+#   scale_y_continuous(limits = c(0,1)) +
+#   scale_colour_mrna()
+
+```
+
+## Distribution of cell area by strain
+
+```{r plot_cellareadistn, fig.height = 5, fig.width = 4}
+ggplot(data = mrna_alldata,
+       aes(x = area)) +
+  geom_density(linewidth = 1,
+              kernel = "rectangular") + 
+  geom_density(aes(linetype = replicate),
+               colour = "grey50",
+              kernel = "rectangular") + 
+  facet_wrap(~ strain_nice,
+             ncol = 1,
+        strip.position = "left") + 
+  geom_hline(yintercept = 0) + 
+  coord_cartesian(xlim = c(1500,6500), expand = FALSE) +
+  theme(axis.text.y  = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.y  = element_blank(),
+        axis.title.y = element_blank(),
+        strip.text.y.left = element_text(angle = 0))
+```
+
+## Distribution of bud area by strain
+
+```{r plot_budareadistn, fig.height = 5, fig.width = 4}
+ggplot(data = mrna_alldata %>%
+         filter(area_bud > 0),
+       aes(x = area_bud)) +
+  geom_density(linewidth = 1,
+              kernel = "rectangular") + 
+  geom_density(aes(linetype = replicate),
+               colour = "grey50",
+              kernel = "rectangular") + 
+  facet_wrap(~ strain_nice,
+             ncol = 1,
+        strip.position = "left") + 
+  geom_hline(yintercept = 0) + 
+  coord_cartesian(xlim = c(0,3000), expand = FALSE) +
+  theme(axis.text.y  = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.line.y  = element_blank(),
+        axis.title.y = element_blank(),
+        strip.text.y.left = element_text(angle = 0))
+```
+
+
+## Prop in bud vs bud size for WT
+
+```{r plot_propinbud_WT, fig.width = 4}
+ggplot(data = mrna_alldata %>%
+         filter(strain_nice %in% c("WT"),
+                area_bud > 0),
+       aes(x = area_bud, y = total_RNAs_bud / total_RNAs)) +
+  geom_point(size = 0.1, colour = "grey50") +
+  geom_smooth(aes(linetype = replicate, colour = mRNA),
+              method = "loess", se = FALSE) + 
+  facet_wrap(~ mRNA, ncol = 1, scales = "free_y") +
+  theme(panel.grid.major.y = element_line(colour = "grey80")) +
+  scale_y_continuous(limits = c(0,1)) +
+  scale_x_continuous(limits = c(0,3000), expand = c(0,0)) +
+  scale_colour_mrna()
+
+```
+
+```{r plot_propinbud_ssd1, fig.width = 4}
+ggplot(data = mrna_alldata %>%
+         filter(strain_nice %in% c("ssd1Δ"),
+                area_bud > 0),
+       aes(x = area_bud, y = total_RNAs_bud / total_RNAs)) +
+  geom_point(size = 0.1, colour = "grey50") +
+  geom_smooth(aes(linetype = replicate, colour = mRNA),
+              method = "loess", se = FALSE) + 
+  facet_wrap(~ mRNA, ncol = 1, scales = "free_y") +
+  theme(panel.grid.major.y = element_line(colour = "grey80")) +
+  scale_y_continuous(limits = c(0,1)) +
+  scale_x_continuous(limits = c(0,3000), expand = c(0,0)) +
+  scale_colour_mrna()
+
+```
+
+```{r plot_propinbud_she3, fig.width = 4}
+ggplot(data = mrna_alldata %>%
+         filter(strain_nice %in% c("she3∆"),
+                area_bud > 0),
+       aes(x = area_bud, y = total_RNAs_bud / total_RNAs)) +
+  geom_point(size = 0.1, colour = "grey50") +
+  geom_smooth(aes(linetype = replicate, colour = mRNA),
+              method = "loess", se = FALSE) + 
+  facet_wrap(~ mRNA, ncol = 1, scales = "free_y") +
+  theme(panel.grid.major.y = element_line(colour = "grey80")) +
+  scale_y_continuous(limits = c(0,1)) +
+  scale_x_continuous(limits = c(0,3000), expand = c(0,0)) +
+  scale_colour_mrna()
+
+```
+
+```{r plot_propinbud_vsstrain, fig.width = 7}
+ggplot(data = mrna_alldata %>%
+         filter(strain_nice %in% c("WT", "ssd1Δ", "mpt5∆", "she2∆", "she3∆"),
+                area_bud > 0),
+       aes(x = area_bud, y = total_RNAs_bud / total_RNAs)) +
+  geom_point(size = 0.1, colour = "grey50") +
+  geom_smooth(aes(colour = mRNA),
+              method = "gam",  se = FALSE) + 
+  facet_grid(mRNA ~ strain_nice) +
+  theme(panel.grid.major.y = element_line(colour = "grey80")) +
+  scale_y_continuous(limits = c(0,1),
+                     breaks = c(0, 0.25, 0.5, 0.75, 1),
+                     labels = c("0", "", "0.5", "", "1")) +
+  coord_cartesian(xlim = c(0,2900), expand = FALSE) +
+  scale_colour_mrna()
+
+```
