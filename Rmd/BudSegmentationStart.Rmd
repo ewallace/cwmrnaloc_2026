@@ -23,6 +23,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(here)
 library(tidyverse)
 library(ggbeeswarm)
+library(GGally)
 library(cowplot)
 theme_set(theme_cowplot(font_size = 10) + 
             theme(strip.background = element_blank())
@@ -377,3 +378,78 @@ ggplot(data = mrna_alldata %>%
         axis.title.y = element_blank(),
         strip.text.y.left = element_text(angle = 0))
 ```
+
+# Assign cell cycle phase based on cell statistics
+
+The idea is:
+
+- G1 cells have no bud and nucleus in mother
+- S cells have small buds (under about 20 square microns)
+- G2 cells have larger buds but only one nucleus in mother
+- M cells have 2 nuclei in both bud and mother
+- some cells might be unassigned to "other"
+
+```{r assign_cell_phase}
+mrna_alldata_wphase <-
+  mrna_alldata %>%
+  # filter for cells of sensible size - 2 um to 20 um
+  filter(axis_major_length > 30,
+         axis_major_length < 300) %>%
+  mutate(
+    cell_cycle_phase = 
+      case_when(
+        area_bud == 0 ~ "G1",
+        area_bud > 0    & area_bud < 500  & 
+          nuclei_bud_count == 0 ~ "S",
+        area_bud >= 500 & area_bud < 3000 & 
+          nuclei_bud_count == 0 ~ "G2",
+        area_bud > 500  & 
+          mother_nuclei_count == 1 & nuclei_bud_count == 1 ~ "M",
+        .default = "NA"
+      ) %>%
+      factor(levels = c("G1", "S", "G2", "M", "other"))
+  )
+```
+
+### Check cell-level statistics for cell cycle phase.
+
+```{r check_stats_cell_cycle_phase, fig.height = 7, fig.width = 7}
+mrna_alldata_wphase %>%
+  filter(mRNA == "SUN4") %>%
+  select(area, axis_major_length, area_bud, axis_major_length_bud, 
+         cell_cycle_phase) %>%
+  ggpairs(aes(colour = cell_cycle_phase), 
+          lower = list(continuous = wrap("points", size = 0.2), 
+                       combo = "box_no_facet",
+                       discrete = "count") )
+```
+
+### Count mRNA by cell cycle phase
+
+```{r countmrna_by_cellcycle_phase, fig.height=4, fig.width=3.5}
+ggplot(data = mrna_alldata_wphase %>%
+         filter( strain_nice == "WT")) +
+  geom_boxplot(aes(x = cell_cycle_phase, colour = mRNA, y = total_RNAs),
+               outlier.size = 0.2) +
+  facet_wrap(~ mRNA,
+             ncol = 1, scales = "free_y") +
+  theme(panel.grid.major.y = element_line(colour = "grey80")) +
+  scale_colour_mrna()
+```
+
+### localise mRNA by cell cycle phase
+
+```{r propmrna_by_cellcycle_phase, fig.height=4, fig.width=3.5}
+ggplot(data = mrna_alldata_wphase %>%
+         filter( strain_nice == "WT")) +
+  geom_boxplot(aes(x = cell_cycle_phase, colour = mRNA, 
+                   y = total_RNAs_bud / total_RNAs),
+               outlier.size = 0.2) +
+  facet_wrap(~ mRNA,
+             ncol = 1, scales = "free_y") +
+  theme(panel.grid.major.y = element_line(colour = "grey80")) +
+  scale_colour_mrna() +
+  scale_y_continuous("Proportion of mRNAs in bud",
+                     limits = c(0,1))
+```
+
