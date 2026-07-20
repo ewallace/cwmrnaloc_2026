@@ -30,7 +30,23 @@ theme_set(theme_cowplot(font_size = 10) +
 )
 ```
 
+
 # Load bud segmentation data
+
+Define pixel dimensions in micrometres (um), 0.065 micron per pixel for the 100x objective.
+
+Also set range of sizes to plot for total cell area, bud area, nuclear area, axis limits, in micrometres.
+
+```{r pixel_dimensions}
+pixel_width <- 0.065
+pixel_area  <- pixel_width^2
+
+cell_area_limits <- c(6,30)
+bud_area_limits  <- c(0,15)
+nuc_area_limits  <- c(0,3.5)
+
+cell_length_limits <- c(2, 20)
+```
 
 ```{r strain_names}
 # make short table here of strain ids and names in desired order
@@ -76,7 +92,11 @@ mrna_alldata <- here::here("data", "Mara_budSegmentationData20260311.csv") %>%
                   levels = c("BR1", "BR2", "BR3", "BR4", "BR5")),
          mRNA = factor(mRNA,
                        levels = c("ASH1CLB2", "SRL1", "SUN4"), 
-                       labels = c("CLB2 + ASH1", "SRL1", "SUN4"), )
+                       labels = c("CLB2 + ASH1", "SRL1", "SUN4"), ),
+         area_umsq     = area * pixel_area,
+         area_bud_umsq = area_bud * pixel_area,
+         axis_minor_length_um = axis_minor_length * pixel_width,
+         axis_major_length_um = axis_major_length * pixel_width,
          ) %>%
   rename_with(str_replace_all, pattern = "-", replacement = "_") %>%
   left_join(strain_table, by = c("strain", "condition"))
@@ -145,17 +165,17 @@ ggplot(data = mrna_alldata %>%
 ```{r plot_countvsarea_WT, fig.height = 4, fig.width = 3.5}
 plot_count_vs_area_WT <- 
   ggplot(data = mrna_alldata %>%
-           filter(area > 1000,
+           filter(area_umsq > 4,
                   strain_nice %in% c("WT")),
-         aes(x = area, y = total_RNAs)) +
+         aes(x = area_umsq, y = total_RNAs)) +
   geom_point(size = 0.1, colour = "grey50") +
   geom_smooth(aes(linetype = replicate, colour = mRNA),
-              method = "loess", se = FALSE) + 
+              method = "gam", se = FALSE) + 
   facet_wrap(~ mRNA, ncol = 1, scales = "free_y") +
   coord_cartesian(expand = FALSE) + 
   scale_colour_mrna() +
   theme(panel.grid.major.y = element_line(colour = "grey80")) +
-  labs(x = "total cell area (pixels)",
+  labs(x = "total cell area (um^2)",
        y = "mRNA count per cell") + 
   guides(colour = guide_legend(order = 1),
          linetype = "none")
@@ -167,14 +187,16 @@ plot_count_vs_area_WT
 ggplot(data = mrna_alldata %>%
          filter(strain_nice %in% c("WT", "ssd1Δ", "mpt5∆", "she2∆", "she3∆"),
                 area_bud > 0),
-       aes(x = area, y = total_RNAs)) +
+       aes(x = area_umsq, y = total_RNAs)) +
   geom_point(size = 0.1, colour = "grey50") +
   geom_smooth(aes(colour = mRNA),
               method = "gam",  se = FALSE) + 
   facet_grid(mRNA ~ strain_nice, scales = "free_y") +
   theme(panel.grid.major.y = element_line(colour = "grey80")) +
-  coord_cartesian(xlim = c(1500,6500), expand = FALSE) +
-  scale_colour_mrna()
+  coord_cartesian(xlim = cell_area_limits, expand = FALSE) +
+  scale_colour_mrna() + 
+  labs(x = "total cell area (um^2)",
+       y = "mRNA count per cell")
 
 ```
 
@@ -184,14 +206,14 @@ ggplot(data = mrna_alldata %>%
 ggplot(data = mrna_alldata %>%
          filter(area_bud > 0,
                 strain_nice %in% c("WT")),
-       aes(x = area_bud, y = total_RNAs)) +
+       aes(x = area_bud_umsq, y = total_RNAs)) +
   geom_point(size = 0.1, colour = "grey50") +
   geom_smooth(aes(linetype = replicate, colour = mRNA),
-              method = "loess", se = FALSE) + 
+              method = "gam", se = FALSE) + 
   facet_wrap(~ mRNA, ncol = 1, scales = "free_y") +
   scale_colour_mrna()  +
   theme(panel.grid.major.y = element_line(colour = "grey80")) +
-  labs(x = "bud area (pixels)",
+  labs(x = "bud area (um^2)",
        y = "mRNA count per cell")
 
 ```
@@ -245,16 +267,16 @@ plot_prop_vs_budarea_WT <-
 ggplot(data = mrna_alldata %>%
          filter(strain_nice %in% c("WT"),
                 area_bud > 0),
-       aes(x = area_bud, y = total_RNAs_bud / total_RNAs)) +
+       aes(x = area_bud_umsq, y = total_RNAs_bud / total_RNAs)) +
   geom_point(size = 0.1, colour = "grey50") +
   geom_smooth(aes(linetype = replicate, colour = mRNA),
-              method = "loess", se = FALSE) + 
+              method = "gam", se = FALSE) + 
   facet_wrap(~ mRNA, ncol = 1, scales = "free_y") +
   theme(panel.grid.major.y = element_line(colour = "grey80")) +
   scale_y_continuous("Proportion of mRNA in bud", 
                      limits = c(0,1)) +
-  labs(x = "Bud area (pixels)") + 
-  coord_cartesian(xlim = c(0,2900), expand = FALSE) +
+  labs(x = "Bud area (um^2)") + 
+  coord_cartesian(xlim = bud_area_limits, expand = FALSE) +
   scale_colour_mrna() + 
   guides(colour = guide_legend(order = 1),
          linetype = "none")
@@ -270,7 +292,7 @@ plot_prop_vs_budarea_WT
 ggplot(data = mrna_alldata %>%
          filter(strain_nice %in% c("WT", "ssd1Δ", "mpt5∆", "she2∆", "she3∆"),
                 area_bud > 0),
-       aes(x = area_bud, y = total_RNAs_bud / total_RNAs)) +
+       aes(x = area_bud_umsq, y = total_RNAs_bud / total_RNAs)) +
   geom_point(size = 0.1, colour = "grey50") +
   geom_smooth(aes(colour = mRNA),
               method = "gam",  se = FALSE) + 
@@ -280,8 +302,8 @@ ggplot(data = mrna_alldata %>%
                      limits = c(0,1),
                      breaks = c(0, 0.25, 0.5, 0.75, 1),
                      labels = c("0", "", "0.5", "", "1")) +
-  labs(x = "Bud area (pixels)") + 
-  coord_cartesian(xlim = c(0,2900), expand = FALSE) +
+  labs(x = "Bud area (um^2)") + 
+  coord_cartesian(xlim = bud_area_limits, expand = FALSE) +
   scale_colour_mrna()
 
 ```
@@ -291,7 +313,7 @@ ggplot(data = mrna_alldata %>%
 
 ```{r plot_cellareadistn, fig.height = 5, fig.width = 4}
 ggplot(data = mrna_alldata,
-       aes(x = area)) +
+       aes(x = area_umsq)) +
   geom_density(linewidth = 1,
               kernel = "rectangular") + 
   geom_density(aes(linetype = replicate),
@@ -301,7 +323,7 @@ ggplot(data = mrna_alldata,
              ncol = 1,
         strip.position = "left") + 
   geom_hline(yintercept = 0) + 
-  coord_cartesian(xlim = c(1500,6500), expand = FALSE) +
+  coord_cartesian(xlim = cell_area_limits, expand = FALSE) +
   theme(axis.text.y  = element_blank(),
         axis.ticks.y = element_blank(),
         axis.line.y  = element_blank(),
@@ -324,7 +346,7 @@ ggplot(data = mrna_alldata %>%
              ncol = 1,
         strip.position = "left") + 
   geom_hline(yintercept = 0) + 
-  coord_cartesian(xlim = c(0,3000), expand = FALSE) +
+  coord_cartesian(xlim = bud_area_limits, expand = FALSE) +
   theme(axis.text.y  = element_blank(),
         axis.ticks.y = element_blank(),
         axis.line.y  = element_blank(),
@@ -346,7 +368,7 @@ ggplot(data = mrna_alldata ,
              ncol = 1,
         strip.position = "left") + 
   geom_hline(yintercept = 0) + 
-  coord_cartesian(xlim = c(0,750), expand = FALSE) +
+  coord_cartesian(xlim = nuc_area_limits, expand = FALSE) +
   theme(axis.text.y  = element_blank(),
         axis.ticks.y = element_blank(),
         axis.line.y  = element_blank(),
@@ -384,7 +406,7 @@ ggplot(data = mrna_alldata %>%
 The idea is:
 
 - G1 cells have no bud and nucleus in mother
-- S cells have small buds (under about 20 square microns)
+- S cells have small buds (under about 20 um^2)
 - G2 cells have larger buds but only one nucleus in mother
 - M cells have 2 nuclei in both bud and mother
 - some cells might be unassigned to "other"
@@ -393,34 +415,49 @@ The idea is:
 mrna_alldata_wphase <-
   mrna_alldata %>%
   # filter for cells of sensible size - 2 um to 20 um
-  filter(axis_major_length > 30,
-         axis_major_length < 300) %>%
+  filter(axis_major_length_um > cell_length_limits[1],
+         axis_major_length_um < cell_length_limits[2]) %>%
   mutate(
     cell_cycle_phase = 
       case_when(
-        area_bud == 0 ~ "G1",
-        area_bud > 0    & area_bud < 500  & 
-          nuclei_bud_count == 0 ~ "S",
-        area_bud >= 500 & area_bud < 3000 & 
-          nuclei_bud_count == 0 ~ "G2",
-        area_bud > 500  & 
-          mother_nuclei_count == 1 & nuclei_bud_count == 1 ~ "M",
+        area_bud_umsq == 0 ~ 
+          "G1",
+        area_bud_umsq > 0    & 
+          area_bud_umsq < 2  & 
+          nuclei_bud_count == 0 ~ 
+          "S",
+        area_bud_umsq >= 2 & 
+          area_bud_umsq < bud_area_limits[2] & 
+          nuclei_bud_count == 0 ~ 
+          "G2",
+        area_bud_umsq > 2  & 
+          mother_nuclei_count == 1 & 
+          nuclei_bud_count == 1 ~ 
+          "M",
         .default = "NA"
       ) %>%
-      factor(levels = c("G1", "S", "G2", "M", "other"))
+      factor(levels = c("G1", "S", "G2", "M"))
   )
 ```
+
+We should check what the unassigned cells are doing - cells that are unreasonably small or have unreasonably large buds - but it is not a large proportion.
+
 
 ### Check cell-level statistics for cell cycle phase.
 
 ```{r check_stats_cell_cycle_phase, fig.height = 7, fig.width = 7}
 mrna_alldata_wphase %>%
   filter(mRNA == "SUN4") %>%
-  select(area, axis_major_length, area_bud, axis_major_length_bud, 
+  mutate(axis_major_length_bud_um = 
+           axis_major_length_bud * pixel_width ) %>%
+  select(area_umsq,
+         axis_major_length_um, 
+         area_bud_umsq,
+         axis_major_length_bud_um, 
          cell_cycle_phase) %>%
   ggpairs(aes(colour = cell_cycle_phase), 
           lower = list(continuous = wrap("points", size = 0.2), 
-                       combo = "box_no_facet",
+                       combo = wrap("box_no_facet", outlier.size = 0.2),
                        discrete = "count") )
 ```
 
