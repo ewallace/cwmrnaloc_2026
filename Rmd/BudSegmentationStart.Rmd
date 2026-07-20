@@ -41,9 +41,9 @@ Also set range of sizes to plot for total cell area, bud area, nuclear area, axi
 pixel_width <- 0.065
 pixel_area  <- pixel_width^2
 
-cell_area_limits <- c(6,30)
-bud_area_limits  <- c(0,15)
-nuc_area_limits  <- c(0,3.5)
+cell_area_limits <- c(6, 30)
+bud_area_limits  <- c(0, 15)
+nuc_area_limits  <- c(0, 3.5)
 
 cell_length_limits <- c(2, 20)
 ```
@@ -445,20 +445,36 @@ We should check what the unassigned cells are doing - cells that are unreasonabl
 
 ### Check cell-level statistics for cell cycle phase.
 
-```{r check_stats_cell_cycle_phase, fig.height = 7, fig.width = 7}
+Check distributions and correlations of:
+
+- cell area in um^2, `area_umsq`
+- cell length in um, `axis_major_length_um` 
+- bud area in um^2, `area_bud_umsq`
+- bud length in um, `axis_major_length_bud_um` 
+- cell cycle phase assigned by rules, `cell_cycle_phase`
+
+```{r check_stats_cell_cycle_phase, fig.height = 7, fig.width = 7, warning = FALSE, message = FALSE}
 mrna_alldata_wphase %>%
   filter(mRNA == "SUN4") %>%
   mutate(axis_major_length_bud_um = 
            axis_major_length_bud * pixel_width ) %>%
-  select(area_umsq,
-         axis_major_length_um, 
-         area_bud_umsq,
-         axis_major_length_bud_um, 
-         cell_cycle_phase) %>%
-  ggpairs(aes(colour = cell_cycle_phase), 
+  select("cell area"   = area_umsq,
+         "cell length" = axis_major_length_um, 
+         "bud area"    = area_bud_umsq,
+         "bud length"  = axis_major_length_bud_um, 
+         "phase"       = cell_cycle_phase) %>%
+  ggpairs(aes(colour = phase), 
           lower = list(continuous = wrap("points", size = 0.2), 
                        combo = wrap("box_no_facet", outlier.size = 0.2),
                        discrete = "count") )
+```
+
+```{r count_by_phase}
+mrna_alldata_wphase %>% 
+  filter(mRNA == "SRL1") %>%
+  group_by(strain_nice, cell_cycle_phase) %>% 
+  count() %>%
+  print(n = 35)
 ```
 
 ### Count mRNA by cell cycle phase
@@ -471,12 +487,14 @@ ggplot(data = mrna_alldata_wphase %>%
   facet_wrap(~ mRNA,
              ncol = 1, scales = "free_y") +
   theme(panel.grid.major.y = element_line(colour = "grey80")) +
-  scale_colour_mrna()
+  scale_colour_mrna() +
+  labs(y = "Total number of mRNAs",
+       x = "Cell cycle phase")
 ```
 
 ### localise mRNA by cell cycle phase
 
-```{r propmrna_by_cellcycle_phase, fig.height=4, fig.width=3.5}
+```{r propmrna_by_cellcycle_phase_wt, fig.height=4, fig.width=3.5}
 ggplot(data = mrna_alldata_wphase %>%
          filter( strain_nice == "WT")) +
   geom_boxplot(aes(x = cell_cycle_phase, colour = mRNA, 
@@ -487,6 +505,25 @@ ggplot(data = mrna_alldata_wphase %>%
   theme(panel.grid.major.y = element_line(colour = "grey80")) +
   scale_colour_mrna() +
   scale_y_continuous("Proportion of mRNAs in bud",
-                     limits = c(0,1))
+                     limits = c(0,1)) +
+  labs(x = "Cell cycle phase")
+```
+
+### localise mRNA by cell cycle phase, all strains
+
+```{r propmrna_by_cellcycle_phase_allstrains, fig.height=4, fig.width=6}
+ggplot(data = mrna_alldata_wphase %>%
+         filter( strain_nice  %in% c("WT", "ssd1Δ", "mpt5∆", "she2∆", "she3∆"),
+                 !is.na(cell_cycle_phase)) ) +
+  geom_boxplot(aes(x = cell_cycle_phase, colour = mRNA, 
+                   y = total_RNAs_bud / total_RNAs),
+               outlier.size = 0.2) +
+  facet_grid(mRNA ~ strain_nice,
+             scales = "free_y") +
+  theme(panel.grid.major.y = element_line(colour = "grey80")) +
+  scale_colour_mrna() +
+  scale_y_continuous("Proportion of mRNAs in bud",
+                     limits = c(0,1)) +
+  labs(x = "Cell cycle phase")
 ```
 
