@@ -527,3 +527,79 @@ ggplot(data = mrna_alldata_wphase %>%
   labs(x = "Cell cycle phase")
 ```
 
+# Output samples of cells by strain and cell cycle phase
+
+Goal here is to ample at random a small number of cells from each subset that we want to highlight, so that we can spot-check the statistics against cell images and also choose cells to display in a mostly unbiased way.
+
+```{r function_sample_random_cells}
+sample_cells_byphase <- function(df, mystrain, myphase, n = 10) {
+  df %>%
+    filter(mRNA == "CLB2 + ASH1", # because cell stats are repeated 3x
+           strain_nice == mystrain, 
+           cell_cycle_phase == myphase) %>%
+    slice_sample(n=n) %>%
+    arrange(row_id)
+}
+
+write_sample_cells_byphase <- 
+  function(df, mystrain, myphase, filename, n = 10, dirstem = "output") {
+    sample_cells_byphase(df = df, mystrain = mystrain, myphase = myphase, n=n) %>%
+      select(row_id, uid, strain, condition, replicate, fov, image_cell_id, source_folder) %>%
+      write_csv(file = here::here(dirstem, filename))
+  }
+
+# test it.
+mrna_alldata_wphase %>%
+  sample_cells_byphase("WT","G1")
+```
+
+Spot-check non-assigned cells, in file `NA_sample20cells.csv`.
+
+```{r nonassigned_cells}
+# Spot-check non-assigned cells
+set.seed(2026) # set seed so same pseudorandom sample each time
+mrna_alldata_wphase %>% 
+  filter(mRNA == "CLB2 + ASH1", # because cell stats are repeated 3x
+         # strain_nice == "WT", 
+         is.na(cell_cycle_phase)) %>%
+  slice_sample(n=20) %>%
+  arrange(row_id)%>%
+  select(row_id, uid, strain, condition, replicate, fov, image_cell_id, source_folder) %>%
+  write_csv(file = here::here("output", "NA_sample20cells.csv"))
+
+# write_sample_cells_byphase(mrna_alldata_wphase,
+#                            "WT", 
+#                            "G1",
+#                            "WT_G1_sample16cells.csv"
+#                           )
+```
+
+The next chunk gives ids for 20 cells sampled at random for each combination of
+
+- strain (WT, ssd1∆, mpt5∆, she2∆, she3∆)
+- cell cycle phase (G1, S, G2, M)
+
+For example, file  `WT_G1_sample20cells.csv` has 20 cells from WT in G1.
+
+
+```{r write_sample_random_cells}
+set.seed(2026)
+expand_grid(strain_nice  = c("WT", "ssd1Δ", "mpt5∆", "she2∆", "she3∆"),
+            cell_cycle_phase = c("G1", "S", "G2", "M")) %>%
+  rowwise() %>%
+  do(write_sample_cells_byphase(df = mrna_alldata_wphase,
+                                mystrain = .$strain_nice,
+                                myphase = .$cell_cycle_phase,
+                                filename = paste(.$strain_nice,
+                                                 .$cell_cycle_phase,
+                                                 "sample20cells.csv",
+                                                 sep = "_"),
+                                n = 20)
+     )
+
+
+
+
+```
+
+
