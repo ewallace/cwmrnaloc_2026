@@ -103,15 +103,27 @@ mrna_alldata <- here::here("data", "Mara_budSegmentationData20260311.csv") %>%
 
 mrna_alldata
 ```
+## Count assigned cells 
 
-
-```{r count_by_replicate}
+```{r count_blankcells_by_replicate}
 mrna_alldata %>% 
   filter(mRNA == "SRL1") %>%
   group_by(strain_nice, replicate) %>% 
   count() %>%
   print(n = 30)
 ```
+
+## Count assigned cells w/ no RNA detected
+
+```{r count_by_replicate}
+mrna_alldata %>% 
+  group_by(strain_nice, replicate) %>% 
+  summarise(total_all_RNAs = sum(total_RNAs)) %>%
+  count() %>%
+  print(n = 30)
+```
+
+There are very few cells so we do not need to worry about it.
 
 # Overview plots across strains
 
@@ -335,8 +347,8 @@ ggplot(data = mrna_alldata,
 
 ```{r plot_budareadistn, fig.height = 5, fig.width = 4}
 ggplot(data = mrna_alldata %>%
-         filter(area_bud > 0),
-       aes(x = area_bud)) +
+         filter(area_bud_umsq > 0),
+       aes(x = area_bud_umsq)) +
   geom_density(linewidth = 1,
               kernel = "rectangular") + 
   geom_density(aes(linetype = replicate),
@@ -358,7 +370,7 @@ ggplot(data = mrna_alldata %>%
 
 ```{r plot_mothernucareadistn, fig.height = 5, fig.width = 4}
 ggplot(data = mrna_alldata ,
-       aes(x = mother_nuclei_area)) +
+       aes(x = mother_nuclei_area * pixel_area)) +
   geom_density(linewidth = 1,
               kernel = "rectangular") + 
   geom_density(aes(linetype = replicate),
@@ -368,7 +380,8 @@ ggplot(data = mrna_alldata ,
              ncol = 1,
         strip.position = "left") + 
   geom_hline(yintercept = 0) + 
-  coord_cartesian(xlim = nuc_area_limits, expand = FALSE) +
+  coord_cartesian(xlim = nuc_area_limits * pixel_area, expand = FALSE) +
+  labs(x = "mother nuclei area (um^2)") + 
   theme(axis.text.y  = element_blank(),
         axis.ticks.y = element_blank(),
         axis.line.y  = element_blank(),
@@ -383,7 +396,7 @@ Looks terrible because most buds do not have nuclei.
 ```{r plot_budnucareadistn, fig.height = 5, fig.width = 4}
 ggplot(data = mrna_alldata %>%
          filter(area_bud > 0),
-       aes(x = nuclei_bud_area)) +
+       aes(x = nuclei_bud_area * pixel_area)) +
   geom_density(linewidth = 1,
               kernel = "rectangular") + 
   geom_density(aes(linetype = replicate),
@@ -394,6 +407,7 @@ ggplot(data = mrna_alldata %>%
         strip.position = "left") + 
   geom_hline(yintercept = 0) + 
   #coord_cartesian(xlim = c(0,750), expand = FALSE) +
+  labs(x = "bud nuclei area (um^2)") +
   theme(axis.text.y  = element_blank(),
         axis.ticks.y = element_blank(),
         axis.line.y  = element_blank(),
@@ -405,13 +419,27 @@ ggplot(data = mrna_alldata %>%
 
 The idea is:
 
-- G1 cells have no bud and nucleus in mother
-- S cells have small buds (under about 20 um^2)
-- G2 cells have larger buds but only one nucleus in mother
+- G1 cells have no bud and nucleus in mother, and few (<= 5) CLB2 + ASH1 mRNAs
+- S cells have small buds (under about 20 um^2) and only one nucleus, in mother
+- G2 cells have larger buds but only one nucleus, in mother
 - M cells have 2 nuclei in both bud and mother
-- some cells might be unassigned to "other"
+- some cells might be not assigned so "NA"
+
+Insisting on cells having the right number of nuclei should exclude cells that are not permeabilised, or that are otherwise strange and should not be counted.
+
+
+We also did not use nuclear shape to assign morphology.
 
 ```{r assign_cell_phase}
+
+# pick cells with <= 5 CLB2 + ASH1 mRNAs, for G1
+uids_wfewCLB2ASH1 <- 
+    mrna_alldata %>%
+  filter(mRNA == "CLB2 + ASH1",
+         total_RNAs <= 5) %>%
+  pull("uid")
+
+
 mrna_alldata_wphase <-
   mrna_alldata %>%
   # filter for cells of sensible size - 2 um to 20 um
@@ -420,14 +448,18 @@ mrna_alldata_wphase <-
   mutate(
     cell_cycle_phase = 
       case_when(
-        area_bud_umsq == 0 ~ 
+        area_bud_umsq == 0 & 
+          mother_nuclei_count == 1 &
+          uid %in% uids_wfewCLB2ASH1 ~ 
           "G1",
         area_bud_umsq > 0    & 
           area_bud_umsq < 2  & 
+          mother_nuclei_count == 1 & 
           nuclei_bud_count == 0 ~ 
           "S",
         area_bud_umsq >= 2 & 
           area_bud_umsq < bud_area_limits[2] & 
+          mother_nuclei_count == 1 & 
           nuclei_bud_count == 0 ~ 
           "G2",
         area_bud_umsq > 2  & 
@@ -479,7 +511,7 @@ mrna_alldata_wphase %>%
 
 ### Count mRNA by cell cycle phase
 
-```{r countmrna_by_cellcycle_phase, fig.height=4, fig.width=3.5}
+```{r countmrna_by_cellcycle_phase_wt, fig.height=4, fig.width=3.5}
 ggplot(data = mrna_alldata_wphase %>%
          filter( strain_nice == "WT")) +
   geom_boxplot(aes(x = cell_cycle_phase, colour = mRNA, y = total_RNAs),
@@ -488,6 +520,7 @@ ggplot(data = mrna_alldata_wphase %>%
              ncol = 1, scales = "free_y") +
   theme(panel.grid.major.y = element_line(colour = "grey80")) +
   scale_colour_mrna() +
+  coord_cartesian(ylim = c(0,100), expand = FALSE, clip = "on") + 
   labs(y = "Total number of mRNAs",
        x = "Cell cycle phase")
 ```
@@ -504,14 +537,33 @@ ggplot(data = mrna_alldata_wphase %>%
              ncol = 1, scales = "free_y") +
   theme(panel.grid.major.y = element_line(colour = "grey80")) +
   scale_colour_mrna() +
-  scale_y_continuous("Proportion of mRNAs in bud",
-                     limits = c(0,1)) +
-  labs(x = "Cell cycle phase")
+  coord_cartesian(ylim = c(0,1), expand = FALSE, clip = "off") + 
+  labs(y = "Proportion of mRNAs in bud",
+       x = "Cell cycle phase")
 ```
 
-### localise mRNA by cell cycle phase, all strains
+### Count mRNA by cell cycle phase, all strains
 
-```{r propmrna_by_cellcycle_phase_allstrains, fig.height=4, fig.width=6}
+```{r countmrna_by_cellcycle_phase_allstrains, fig.height=3.2, fig.width=5}
+ggplot(data = mrna_alldata_wphase %>%
+         filter( strain_nice  %in% c("WT", "ssd1Δ", "mpt5∆", "she2∆", "she3∆"),
+                 !is.na(cell_cycle_phase)) ) +
+  geom_boxplot(aes(x = cell_cycle_phase, colour = mRNA, 
+                   y = total_RNAs),
+               outlier.size = 0.2) +
+  facet_grid(mRNA ~ strain_nice,
+             scales = "free_y") +
+  theme(panel.grid.major.y = element_line(colour = "grey80")) +
+  scale_colour_mrna() +
+  coord_cartesian(ylim = c(0,100), expand = FALSE, clip = "on") + 
+  labs(y = "Proportion of mRNAs in bud",
+       x = "Cell cycle phase") +
+  theme(legend.position = "none")
+```
+
+### Localise mRNA by cell cycle phase, all strains
+
+```{r propmrna_by_cellcycle_phase_allstrains, fig.height=3.2, fig.width=5}
 ggplot(data = mrna_alldata_wphase %>%
          filter( strain_nice  %in% c("WT", "ssd1Δ", "mpt5∆", "she2∆", "she3∆"),
                  !is.na(cell_cycle_phase)) ) +
@@ -522,9 +574,10 @@ ggplot(data = mrna_alldata_wphase %>%
              scales = "free_y") +
   theme(panel.grid.major.y = element_line(colour = "grey80")) +
   scale_colour_mrna() +
-  scale_y_continuous("Proportion of mRNAs in bud",
-                     limits = c(0,1)) +
-  labs(x = "Cell cycle phase")
+  coord_cartesian(ylim = c(0,1), expand = FALSE, clip = "off") + 
+  labs(y = "Proportion of mRNAs in bud",
+       x = "Cell cycle phase") +
+  theme(legend.position = "none")
 ```
 
 # Output samples of cells by strain and cell cycle phase
