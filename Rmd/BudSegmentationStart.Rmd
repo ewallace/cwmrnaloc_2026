@@ -74,11 +74,19 @@ mrna_names <- c("CLB2 + ASH1", "SRL1", "SUN4")
 
 mrna_names
 
+mrna_colour_values <- c("CLB2 + ASH1" = "magenta3", 
+               "SRL1" = "goldenrod3", 
+               "SUN4" = "forestgreen")
+
 scale_colour_mrna <- function(...) {
   scale_colour_manual(
-    values = c("CLB2 + ASH1" = "magenta3", 
-               "SRL1" = "goldenrod3", 
-               "SUN4" = "forestgreen"),
+    values = mrna_colour_values,
+    ...)
+}
+
+scale_fill_mrna <- function(...) {
+  scale_fill_manual(
+    values = mrna_colour_values,
     ...)
 }
 ```
@@ -187,7 +195,7 @@ plot_count_vs_area_WT <-
               method = "gam", se = FALSE) + 
   facet_wrap(~ mRNA, ncol = 1, scales = "free_y") +
   coord_cartesian(expand = FALSE) + 
-  scale_colour_mrna() +
+  scale_colour_mrna() + 
   theme(panel.grid.major.y = element_line(colour = "grey80")) +
   labs(x = "total cell area (um^2)",
        y = "mRNA count per cell") + 
@@ -197,24 +205,51 @@ plot_count_vs_area_WT <-
 plot_count_vs_area_WT
 ```
 
-```{r plot_countvsarea_vsstrain, fig.width = 9}
+```{r plot_countvsarea_vsstrain_WTgrid, fig.height = 8, fig.width = 7}
 ggplot(data = mrna_alldata %>%
-         filter(
-           area_umsq > 4,
-           strain_nice %in% c("WT", "ssd1Δ", "mpt5∆", "she2∆", "she3∆")
+           filter(
+             area_umsq > 4,
+             strain_nice %in% c("WT")
            ),
-       aes(x = area_umsq, y = total_RNAs)) +
+         aes(x = area_umsq, y = total_RNAs)) +
   geom_point(size = 0.1, colour = "grey50") +
-  geom_smooth(aes(colour = mRNA),
-              method = "gam",  se = FALSE) + 
+  geom_smooth(aes(colour = mRNA, fill = mRNA),
+              method = "gam",  se = TRUE) + 
+  facet_grid(mRNA ~ strain_nice, scales = "free_y") +
+  theme(panel.grid.major.x = element_line(colour = "grey80"),
+        panel.grid.major.y = element_line(colour = "grey80"),
+        panel.grid.minor.x = element_line(colour = "grey85"),
+        panel.grid.minor.y = element_line(colour = "grey85"),
+        ) +
+  coord_cartesian(xlim = cell_area_limits, ylim = c(0,101),
+                  expand = FALSE) +
+  scale_colour_mrna() + scale_fill_mrna() +
+  labs(x = "total cell area (um^2)",
+       y = "mRNA count per cell")
+
+```
+
+
+```{r plot_countvsarea_vsstrain, fig.width = 9}
+plot_countvsarea_vsstrain <- 
+  ggplot(data = mrna_alldata %>%
+           filter(
+             area_umsq > 4,
+             strain_nice %in% c("WT", "ssd1Δ", "mpt5∆", "she2∆", "she3∆")
+           ),
+         aes(x = area_umsq, y = total_RNAs)) +
+  geom_point(size = 0.1, colour = "grey50") +
+  geom_smooth(aes(colour = mRNA, fill = mRNA),
+              method = "gam",  se = TRUE) + 
   facet_grid(mRNA ~ strain_nice, scales = "free_y") +
   theme(panel.grid.major.y = element_line(colour = "grey80")) +
   coord_cartesian(xlim = cell_area_limits, ylim = c(0,101),
                   expand = FALSE) +
-  scale_colour_mrna() + 
+  scale_colour_mrna() + scale_fill_mrna() +
   labs(x = "total cell area (um^2)",
        y = "mRNA count per cell")
 
+plot_countvsarea_vsstrain
 ```
 
 ## Count vs bud area for WT
@@ -349,56 +384,113 @@ plot_prop_vs_budarea_WT
 ```
 
 
-
 ## Prop in bud vs bud size for relevant strains
 
 ```{r plot_propinbud_vsstrain, fig.height = 5, fig.width = 9}
 ggplot(data = mrna_alldata %>%
          filter(strain_nice %in% c("WT", "ssd1Δ", "mpt5∆", "she2∆", "she3∆"),
-                area_bud > 0),
+                area_bud > 0, 
+                total_RNAs > 0),
        aes(x = area_bud_umsq, y = total_RNAs_bud / total_RNAs)) +
   geom_point(size = 0.1, colour = "grey50") +
-  geom_smooth(aes(colour = mRNA),
-              method = "gam",  se = FALSE) + 
+  geom_smooth(aes(colour = mRNA, fill = mRNA),
+              method = "gam",  se = TRUE) + 
   facet_grid(mRNA ~ strain_nice) +
   theme(panel.grid.major.y = element_line(colour = "grey80")) +
   scale_y_continuous("Proportion of mRNA in bud",
                      limits = c(0,1),
                      breaks = c(0, 0.25, 0.5, 0.75, 1),
-                     labels = c("0", "", "0.5", "", "1")) +
+                     labels = c("0", "", "0.5", "", "1"), 
+                     oob = scales::squish) +
   labs(x = "Bud area (um^2)") + 
   coord_cartesian(xlim = bud_area_limits, expand = FALSE) +
-  scale_colour_mrna()
+  scale_colour_mrna()  + scale_fill_mrna()
 
 ```
 
 
 ## Prop in bud vs prop of cell *area* in bud for relevant strains
 
-It might make more sense to have proportion of *volume* not area, but this is a good start.
+This is good. It might make even more sense to have proportion of *volume* not area.
 
-```{r plot_propinbud_vsareainbud, fig.height = 5, fig.width = 7.5}
+
+```{r plot_propinbud_vsareainbud_WTgrid, fig.height = 8, fig.width = 7}
 ggplot(data = mrna_alldata %>%
-         filter(strain_nice %in% c("WT", "ssd1Δ", "mpt5∆", "she2∆", "she3∆"),
-                area_bud > 0),
+         filter(strain_nice %in% c("WT"),
+                area_bud > 0, 
+                total_RNAs > 0),
        aes(x = area_bud / area, y = total_RNAs_bud / total_RNAs)) +
   geom_abline(slope = 1, intercept = 0, colour = "grey80") + 
   geom_point(size = 0.1, colour = "grey50") +
-  geom_smooth(aes(colour = mRNA),
-              method = "gam",  se = FALSE) + 
+  geom_smooth(aes(colour = mRNA, fill = mRNA),
+              method = "gam",  se = TRUE) + 
+  facet_grid(mRNA ~ strain_nice) +
+  theme(panel.grid.major.x = element_line(colour = "grey80"),
+        panel.grid.major.y = element_line(colour = "grey80"),
+        panel.grid.minor.x = element_line(colour = "grey85"),
+        panel.grid.minor.y = element_line(colour = "grey85"),
+        ) +
+  scale_y_continuous("Proportion of mRNA in bud",
+                     limits = c(0,1),
+                     breaks = c(0, 0.25, 0.5, 0.75, 1),
+                     labels = c("0.00", "0.25", "0.50", "0.75", "1.00"), 
+                     oob = scales::squish) +
+  scale_x_continuous("Bud : total area ratio",
+                     limits = c(0,0.53),
+                     breaks = c(0, 0.25, 0.5, 0.75, 1),
+                     labels = c("0", "0.25", "0.5", "", "1")) +
+  scale_colour_mrna() + scale_fill_mrna()
+
+```
+
+```{r plot_propinbud_vsareainbud, fig.height = 5, fig.width = 9}
+plot_propinbud_vsareainbud <- 
+  ggplot(data = mrna_alldata %>%
+         filter(strain_nice %in% c("WT", "ssd1Δ", "mpt5∆", "she2∆", "she3∆"),
+                area_bud > 0, 
+                total_RNAs > 0),
+       aes(x = area_bud / area, y = total_RNAs_bud / total_RNAs)) +
+  geom_abline(slope = 1, intercept = 0, colour = "grey80") + 
+  geom_point(size = 0.1, colour = "grey50") +
+  geom_smooth(aes(colour = mRNA, fill = mRNA),
+              method = "gam",  se = TRUE) + 
   facet_grid(mRNA ~ strain_nice) +
   theme(panel.grid.major.y = element_line(colour = "grey80")) +
   scale_y_continuous("Proportion of mRNA in bud",
                      limits = c(0,1),
                      breaks = c(0, 0.25, 0.5, 0.75, 1),
-                     labels = c("0", "0.25", "0.5", "", "1")) +
+                     labels = c("0.00", "0.25", "0.50", "0.75", "1.00"), 
+                     oob = scales::squish) +
   scale_x_continuous("Bud : total area ratio",
-                     limits = c(0,0.6),
+                     limits = c(0,0.53),
                      breaks = c(0, 0.25, 0.5, 0.75, 1),
                      labels = c("0", "0.25", "0.5", "", "1")) +
-  scale_colour_mrna()
+  scale_colour_mrna() + scale_fill_mrna()
+
+plot_propinbud_vsareainbud
+```
+
+## Print figure with mRNA count vs area and bud loc vs area ratio
+
+```{r write_continuous_figure}
+continuous_figure <- 
+  plot_grid(plot_countvsarea_vsstrain,
+            plot_propinbud_vsareainbud,
+            ncol = 1,
+            align = "v", 
+            rel_heights = c(4.5,5),
+            labels = "AUTO"
+  )
+
+ggsave(filename = here::here("figure","continuous_figure.pdf"),
+       plot = continuous_figure,
+       width = unit(9, "in"),
+       height = unit(9.5, "in"),
+       device=cairo_pdf )
 
 ```
+
+
 
 
 
@@ -829,4 +921,10 @@ expand_grid(strain_nice  = c("WT", "ssd1Δ", "mpt5∆", "she2∆", "she3∆"),
 
 ```
 
+
+## Report package versions
+
+```{r report_sessioninfo}
+sessionInfo()
+```
 
