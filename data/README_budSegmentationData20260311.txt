@@ -9,6 +9,8 @@ This csv file contains all of the data required for the smFISH and bud analysis 
     "YET919": "ΔMPT5",
     "YET921": "ΔSEC72"
 
+Note: YET918 (ΔSUN4) is included in this file but is excluded from the analysis in Rmd/BudSegmentationAnalysis.Rmd.
+
 Every strain contain several replicates. Below we summarized the number of cells and cells containing buds per individual strain + replicate  combination:
 
           Cells per strains:
