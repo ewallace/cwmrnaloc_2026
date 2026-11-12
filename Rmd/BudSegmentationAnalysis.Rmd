@@ -1032,7 +1032,8 @@ ggsave(here::here("figure","propmrna_by_cellcycle_phase_allstrains.pdf"),
 mrna_alldata_wphase %>% 
   filter(cell_cycle_phase != "G1", total_RNAs > 0) %>%
   group_by(strain_nice, mRNA, cell_cycle_phase) %>% 
-  summarise(median(total_RNAs_bud / total_RNAs))
+  summarise(median(total_RNAs_bud / total_RNAs)) %>%
+  print(n = 60)
 ```
 
 

@@ -1541,7 +1541,8 @@ large proportion in wild-type.</p>
 <pre class="r"><code>mrna_alldata_wphase %&gt;% 
   filter(cell_cycle_phase != &quot;G1&quot;, total_RNAs &gt; 0) %&gt;%
   group_by(strain_nice, mRNA, cell_cycle_phase) %&gt;% 
-  summarise(median(total_RNAs_bud / total_RNAs))</code></pre>
+  summarise(median(total_RNAs_bud / total_RNAs)) %&gt;%
+  print(n = 60)</code></pre>
 <pre><code>## `summarise()` has regrouped the output.
 ## ℹ Summaries were computed grouped by strain_nice, mRNA, and cell_cycle_phase.
 ## ℹ Output is grouped by strain_nice and mRNA.
@@ -1562,7 +1563,56 @@ large proportion in wild-type.</p>
 ##  8 WT          SUN4        G2                                            0.154 
 ##  9 WT          SUN4        M                                             0.444 
 ## 10 ssd1Δ       CLB2 + ASH1 S                                             0.25  
-## # ℹ 50 more rows</code></pre>
+## 11 ssd1Δ       CLB2 + ASH1 G2                                            0.586 
+## 12 ssd1Δ       CLB2 + ASH1 M                                             0.786 
+## 13 ssd1Δ       SRL1        S                                             0.114 
+## 14 ssd1Δ       SRL1        G2                                            0.525 
+## 15 ssd1Δ       SRL1        M                                             0.625 
+## 16 ssd1Δ       SUN4        S                                             0     
+## 17 ssd1Δ       SUN4        G2                                            0.118 
+## 18 ssd1Δ       SUN4        M                                             0.5   
+## 19 mpt5∆       CLB2 + ASH1 S                                             0.3   
+## 20 mpt5∆       CLB2 + ASH1 G2                                            0.556 
+## 21 mpt5∆       CLB2 + ASH1 M                                             0.742 
+## 22 mpt5∆       SRL1        S                                             0.387 
+## 23 mpt5∆       SRL1        G2                                            0.696 
+## 24 mpt5∆       SRL1        M                                             0.699 
+## 25 mpt5∆       SUN4        S                                             0.0455
+## 26 mpt5∆       SUN4        G2                                            0.143 
+## 27 mpt5∆       SUN4        M                                             0.474 
+## 28 she2∆       CLB2 + ASH1 S                                             0     
+## 29 she2∆       CLB2 + ASH1 G2                                            0     
+## 30 she2∆       CLB2 + ASH1 M                                             0.404 
+## 31 she2∆       SRL1        S                                             0.0365
+## 32 she2∆       SRL1        G2                                            0.149 
+## 33 she2∆       SRL1        M                                             0.333 
+## 34 she2∆       SUN4        S                                             0     
+## 35 she2∆       SUN4        G2                                            0.1   
+## 36 she2∆       SUN4        M                                             0.444 
+## 37 she3∆       CLB2 + ASH1 S                                             0     
+## 38 she3∆       CLB2 + ASH1 G2                                            0.0625
+## 39 she3∆       CLB2 + ASH1 M                                             0.412 
+## 40 she3∆       SRL1        S                                             0     
+## 41 she3∆       SRL1        G2                                            0.135 
+## 42 she3∆       SRL1        M                                             0.319 
+## 43 she3∆       SUN4        S                                             0     
+## 44 she3∆       SUN4        G2                                            0.0833
+## 45 she3∆       SUN4        M                                             0.405 
+## 46 sun4∆       CLB2 + ASH1 S                                             0.2   
+## 47 sun4∆       CLB2 + ASH1 G2                                            0.538 
+## 48 sun4∆       CLB2 + ASH1 M                                             0.75  
+## 49 sun4∆       SRL1        S                                             0.316 
+## 50 sun4∆       SRL1        G2                                            0.714 
+## 51 sun4∆       SRL1        M                                             0.769 
+## 52 sec72∆      CLB2 + ASH1 S                                             0.240 
+## 53 sec72∆      CLB2 + ASH1 G2                                            0.553 
+## 54 sec72∆      CLB2 + ASH1 M                                             0.731 
+## 55 sec72∆      SRL1        S                                             0.36  
+## 56 sec72∆      SRL1        G2                                            0.724 
+## 57 sec72∆      SRL1        M                                             0.705 
+## 58 sec72∆      SUN4        S                                             0.0323
+## 59 sec72∆      SUN4        G2                                            0.103 
+## 60 sec72∆      SUN4        M                                             0.474</code></pre>
 </div>
 <div id="analyse-mrna-localization-by-cell-cycle-phase-all-strains-and-replicates" class="section level3">
 <h3>Analyse mRNA localization, by cell cycle phase, all strains and
@@ -1752,16 +1802,16 @@ mrna_alldata_wphase %&gt;%
 <pre><code>## # A tibble: 10 × 57
 ##    row_id image_cell_id bbox_0 bbox_1 bbox_2 bbox_3  area eccentricity
 ##     &lt;dbl&gt;         &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;        &lt;dbl&gt;
-##  1   5373            19    289    534    360    594  3252        0.667
-##  2  28323            77    705   1249    767   1313  3186        0.364
-##  3  31992            69   1679    792   1753    853  3349        0.635
-##  4  32582            12    150    448    211    505  2685        0.454
-##  5  32674           119   1441    692   1495    748  2382        0.305
-##  6  32695           143   1680    122   1733    178  2399        0.355
-##  7  33176           136   1620    283   1679    343  2681        0.510
-##  8  33643           144   2142    187   2198    245  2548        0.326
-##  9  34019           157   1814    868   1877    924  2866        0.466
-## 10  34434            77   1172   1815   1228   1873  2588        0.386
+##  1   5676            43    628    518    696    580  3089        0.659
+##  2  25095            51    886   1721    939   1773  2127        0.246
+##  3  27923            27     99    653    175    714  3414        0.618
+##  4  28341           141   1212   1243   1269   1307  2750        0.494
+##  5  32130            16    692    802    756    859  2709        0.681
+##  6  32167            64   1946   2024   2009   2093  3340        0.523
+##  7  32434            27    952   2041   1022   2106  3544        0.518
+##  8  32606            38    591   1323    660   1386  3344        0.568
+##  9  33144           100   1175    226   1234    283  2680        0.243
+## 10  34458           103   1478   1216   1531   1268  2067        0.381
 ## # ℹ 49 more variables: axis_minor_length &lt;dbl&gt;, axis_major_length &lt;dbl&gt;,
 ## #   orientation &lt;dbl&gt;, perimeter &lt;dbl&gt;, solidity &lt;dbl&gt;, bbox_0_bud &lt;dbl&gt;,
 ## #   bbox_1_bud &lt;dbl&gt;, bbox_2_bud &lt;dbl&gt;, bbox_3_bud &lt;dbl&gt;, area_bud &lt;dbl&gt;,
