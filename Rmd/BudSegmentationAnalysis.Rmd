@@ -151,11 +151,28 @@ There are very few cells so we do not need to worry about it.
 
 ## mRNAs per cell
 
+As a boxplot
+
 ```{r plot_mrna_per_cell, fig.height = 6, fig.width = 7}
 
 ggplot(data = mrna_alldata) +
   geom_boxplot(aes(x = strain_nice, colour = mRNA, y = total_RNAs),
                outlier.size = 0.3) +
+  facet_wrap(~ mRNA,
+             ncol = 1) +
+  theme(panel.grid.major.y = element_line(colour = "grey80")) +
+  scale_colour_mrna()
+
+```
+
+### mRNAs per cell as violin plot shows most, but not all, distributions of mRNA per cell are unimodal
+
+
+```{r plot_mrna_per_cell_violin, fig.height = 6, fig.width = 7}
+
+ggplot(data = mrna_alldata) +
+  geom_violin(aes(x = strain_nice, colour = mRNA, y = total_RNAs),
+              scale = "width") +
   facet_wrap(~ mRNA,
              ncol = 1) +
   theme(panel.grid.major.y = element_line(colour = "grey80")) +
@@ -268,6 +285,35 @@ plot_countvsarea_vsstrain <-
 
 plot_countvsarea_vsstrain
 ```
+
+### For all strains, replicates together, binned into boxplots
+
+```{r plot_countvsarea_vsstrain_boxplots, fig.width = 9}
+ggplot(data = mrna_alldata %>%
+         filter(
+           area_umsq > 4,
+           strain_nice %in% c("WT", "ssd1Δ", "mpt5∆", "she2∆", "she3∆") ) %>% 
+         mutate(area_binned = 
+                  # makes "boxplot moving average"
+                  cut(area_umsq,
+                      breaks = seq(6,30,2),
+                      labels = seq(7,29,2)) %>%
+                  as.character() %>% 
+                  as.numeric()),
+         aes(x = area_umsq, y = total_RNAs)) +
+  geom_point(size = 0.1, colour = "grey65") +
+  geom_boxplot(aes(x = area_binned, colour = mRNA, group = area_binned),
+               fill = NA, outlier.color = NA) + 
+  facet_grid(mRNA ~ strain_nice, scales = "free_y") +
+  theme(panel.grid.major.y = element_line(colour = "grey80")) +
+  coord_cartesian(xlim = cell_area_limits, ylim = c(0,101),
+                  expand = FALSE) +
+  scale_colour_mrna() + scale_fill_mrna() +
+  labs(x = "total cell area (um^2)",
+       y = "mRNA count per cell")
+
+```
+
 
 ## Nascent RNA vs strain
 
@@ -421,6 +467,24 @@ ggplot(data = mrna_alldata %>%
   scale_colour_mrna()
 
 ```
+
+### Proportion in bud as violin plot shows most, but not all, distributions are unimodal
+
+
+```{r plot_propinbud_allstrains_violin, fig.height = 6, fig.width = 7}
+ggplot(data = mrna_alldata %>%
+         filter(area_bud > 0),
+       aes(x = strain_nice, colour = mRNA)) +
+  geom_violin(aes(y = total_RNAs_bud / total_RNAs),
+              scale = "width") +
+  facet_wrap(~ mRNA,
+             ncol = 1) +
+  theme(panel.grid.major.y = element_line(colour = "grey80")) +
+  scale_y_continuous(limits = c(0,1)) +
+  scale_colour_mrna()
+
+```
+
 
 ## Proportion in bud, across biological replicates, for we relevant strains 
 
